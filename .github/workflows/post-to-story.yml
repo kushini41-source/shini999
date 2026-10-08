@@ -1,0 +1,54 @@
+name: Daily posts to stories
+
+on:
+  schedule:
+    - cron: "7 13 * * *"   # every day 21:07 Taiwan time (UTC+8)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only render images, publish nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # to commit state.json (prevents double-posting)
+
+concurrency:
+  group: post-to-story
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps + Chinese font
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk
+          pip install -r .claude/skills/post-to-story/scripts/requirements.txt
+      - name: Turn new posts into stories
+        env:
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          STORY_FONT: /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc
+        run: |
+          python .claude/skills/post-to-story/scripts/post_to_story.py \
+            --hours 26 ${{ inputs.dry_run && '--dry-run' || '' }}
+      - name: Upload rendered images (dry run)
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: story-preview
+          path: story_out/
+      - name: Save state
+        if: ${{ always() && !inputs.dry_run }}
+        run: |
+          git config user.name "post-to-story bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .claude/skills/post-to-story/state.json
+          git diff --cached --quiet || git commit -m "post-to-story: update state [skip ci]"
+          git push
