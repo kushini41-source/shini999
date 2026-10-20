@@ -1,6 +1,12 @@
-// Buffer 繁體中文化：把頁面上的介面文字（含彈出選單、提示框）換成中文
+// 網站繁體中文化：把頁面上的介面文字（含彈出選單、提示框）換成中文
 (function () {
   "use strict";
+
+  // 依網站選字典：manifest 只會在對應網域載入該網站的字典檔
+  var IS_GITHUB = typeof GITHUB_ZH_DICT !== "undefined";
+  var DICT = IS_GITHUB ? GITHUB_ZH_DICT : BUFFER_ZH_DICT;
+  var PATTERNS = IS_GITHUB ? GITHUB_ZH_PATTERNS : BUFFER_ZH_PATTERNS;
+  var HOOK = IS_GITHUB ? GITHUB_ZH_HOOK : null;
 
   var SKIP_TAGS = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEXTAREA: 1, CODE: 1, PRE: 1, SVG: 1, svg: 1, TITLE: 1 };
   var ATTRS = ["placeholder", "title", "aria-label", "alt", "data-tooltip", "data-tip"];
@@ -16,13 +22,13 @@
   function rebuildLower() {
     lower = {};
     var k;
-    for (k in BUFFER_ZH_DICT) lower[k.toLowerCase()] = BUFFER_ZH_DICT[k];
+    for (k in DICT) lower[k.toLowerCase()] = DICT[k];
     for (k in custom) lower[k.toLowerCase()] = custom[k];
   }
 
   function lookup(text) {
     if (Object.prototype.hasOwnProperty.call(custom, text)) return custom[text];
-    if (Object.prototype.hasOwnProperty.call(BUFFER_ZH_DICT, text)) return BUFFER_ZH_DICT[text];
+    if (Object.prototype.hasOwnProperty.call(DICT, text)) return DICT[text];
     var l = text.toLowerCase();
     if (Object.prototype.hasOwnProperty.call(lower, l)) return lower[l];
     // 去掉結尾標點再試一次，例如 "Settings:"、"Saved."
@@ -31,8 +37,8 @@
       var base = lookup(m[1]);
       if (base) return base + m[2].replace(/\./g, "。").replace(/:/g, "：").replace(/!/g, "！").replace(/\?/g, "？");
     }
-    for (var i = 0; i < BUFFER_ZH_PATTERNS.length; i++) {
-      var p = BUFFER_ZH_PATTERNS[i];
+    for (var i = 0; i < PATTERNS.length; i++) {
+      var p = PATTERNS[i];
       if (p[0].test(text)) return text.replace(p[0], p[1]);
     }
     return null;
@@ -110,6 +116,7 @@
 
   function walk(root) {
     if (!enabled || !root) return;
+    if (HOOK && root.nodeType !== 3) HOOK(root);
     if (root.nodeType === 3) { doText(root); return; }
     if (root.nodeType !== 1 && root.nodeType !== 11 && root.nodeType !== 9) return;
     if (root.nodeType === 1) {
@@ -119,7 +126,7 @@
     var tw = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
       acceptNode: function (n) {
         if (n.nodeType === 1) {
-          if (SKIP_TAGS[n.tagName] || n.isContentEditable) return NodeFilter.FILTER_REJECT;
+          if (SKIP_TAGS[n.tagName] || n.isContentEditable || n.hasAttribute("data-zh-skip")) return NodeFilter.FILTER_REJECT;
           return NodeFilter.FILTER_ACCEPT;
         }
         return NodeFilter.FILTER_ACCEPT;
@@ -139,7 +146,7 @@
     var t = document.title;
     if (!t) return;
     // 例如 "Preferences | Buffer"
-    var parts = t.split(/(\s[|\-–]\s)/);
+    var parts = t.split(/(\s[|\-–·]\s)/);
     var changed = false;
     for (var i = 0; i < parts.length; i += 2) {
       var zh = lookup(parts[i].trim());
@@ -174,7 +181,7 @@
       } else if (m.type === "characterData") {
         queue(m.target);
       } else if (m.type === "attributes") {
-        doAttrs(m.target);
+        if (!inEditable(m.target)) doAttrs(m.target);
       }
     }
   });

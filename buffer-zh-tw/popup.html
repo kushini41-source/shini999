@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<title>Buffer 繁體中文化</title>
+<title>網站繁體中文化</title>
 <style>
   body { font: 13px/1.5 "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; width: 380px; margin: 0; padding: 12px; color: #222; }
   h1 { font-size: 15px; margin: 0 0 8px; }
@@ -18,7 +18,7 @@
 </style>
 </head>
 <body>
-  <h1>Buffer 繁體中文化</h1>
+  <h1>網站繁體中文化（Buffer、GitHub）</h1>
   <label class="row"><input type="checkbox" id="enabled"> 啟用中文化</label>
 
   <h2>新增或修改翻譯</h2>
@@ -26,7 +26,7 @@
   <div class="row"><input type="text" id="newZh" placeholder="中文翻譯"><button id="add">儲存</button></div>
   <div id="msg"></div>
 
-  <h2>尚未翻譯的文字 <span class="hint">（在 Buffer 頁面上看到的）</span></h2>
+  <h2>尚未翻譯的文字 <span class="hint">（在 Buffer、GitHub 頁面上看到的）</span></h2>
   <div class="row"><input type="text" id="filter" placeholder="篩選…"><button class="ghost" id="clearMissing">清空</button></div>
   <div class="list" id="missing"></div>
 
@@ -41,6 +41,7 @@
   </div>
   <p class="hint">自訂翻譯存在 Chrome 同步空間，只要在另一台電腦用同一個 Google 帳號登入 Chrome 並安裝本擴充功能，就會自動帶過去。</p>
   <script src="dict.js"></script>
+  <script src="dict-github.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

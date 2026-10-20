@@ -36,14 +36,14 @@ function saveCustom(cb) {
 }
 
 function hasTranslation(en) {
-  return custom[en] || BUFFER_ZH_DICT[en];
+  return custom[en] || BUFFER_ZH_DICT[en] || GITHUB_ZH_DICT[en];
 }
 
 function renderMissing() {
   var box = $("missing"), f = $("filter").value.toLowerCase();
   box.innerHTML = "";
   var keys = Object.keys(missing).filter(function (k) { return !hasTranslation(k) && k.toLowerCase().indexOf(f) >= 0; }).sort();
-  if (!keys.length) { box.innerHTML = '<p class="hint">目前沒有。打開 Buffer 各頁面與選單後再回來看看。</p>'; return; }
+  if (!keys.length) { box.innerHTML = '<p class="hint">目前沒有。打開 Buffer、GitHub 各頁面與選單後再回來看看。</p>'; return; }
   keys.slice(0, 300).forEach(function (en) {
     var row = document.createElement("div"); row.className = "row";
     var s = document.createElement("span"); s.className = "en"; s.textContent = en;
