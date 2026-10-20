@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Buffer 繁體中文化",
+  "version": "1.0.0",
+  "description": "把 Buffer 介面（含說明文字與彈出選單）直接顯示成繁體中文，不需 Google 翻譯。自訂翻譯透過 Chrome 同步存到雲端。",
+  "permissions": ["storage"],
+  "host_permissions": ["https://*.buffer.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://*.buffer.com/*"],
+      "js": ["dict.js", "content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_title": "Buffer 繁體中文化",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+  },
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+}
