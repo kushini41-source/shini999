@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>精準網頁翻譯 — 設定</title>
+<style>
+  :root { color-scheme: light dark; --fg:#202124; --muted:#5f6368; --bg:#fff; --card:#f8f9fa; --line:#dadce0; --accent:#1a73e8; --danger:#b00020; --ok:#188038; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e8eaed; --muted:#9aa0a6; --bg:#202124; --card:#292a2d; --line:#3c4043; --accent:#8ab4f8; --danger:#f28b82; --ok:#81c995; } }
+  body { margin:0; font:14px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif; color:var(--fg); background:var(--bg); }
+  main { max-width:760px; margin:0 auto; padding:24px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin-bottom:20px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:16px; }
+  h2 { font-size:16px; margin:0 0 12px; }
+  label.f { display:block; margin:10px 0; }
+  label.f > span { display:block; font-size:13px; color:var(--muted); margin-bottom:3px; }
+  input[type=text], input[type=password], select, textarea { width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); font:inherit; }
+  textarea { min-height:90px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; }
+  .inline { display:flex; gap:16px; flex-wrap:wrap; }
+  .inline label { display:flex; align-items:center; gap:6px; }
+  .hint { font-size:12px; color:var(--muted); margin-top:4px; }
+  .hint a { color:var(--accent); }
+  button { padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--fg); cursor:pointer; font:inherit; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:var(--bg); border-top:1px solid var(--line); padding:12px 20px; display:flex; justify-content:center; gap:12px; align-items:center; }
+  .msg { font-size:13px; } .msg.ok { color:var(--ok); } .msg.err { color:var(--danger); }
+  .prov { display:none; } .prov.show { display:block; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:560px) { .row2 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>精準網頁翻譯 設定</h1>
+  <div class="sub">用大型語言模型取代瀏覽器內建翻譯。設定會透過 Chrome 同步到你登入的其他裝置。</div>
+
+  <section>
+    <h2>翻譯服務</h2>
+    <label class="f"><span>供應商</span>
+      <select id="provider">
+        <option value="anthropic">Anthropic Claude（推薦，品質最佳）</option>
+        <option value="openai">OpenAI 相容 API（OpenAI／Gemini／DeepSeek／OpenRouter／Ollama／LM Studio）</option>
+        <option value="deepl">DeepL API（有免費額度）</option>
+      </select>
+    </label>
+
+    <div class="prov" id="prov-anthropic">
+      <label class="f"><span>Anthropic API key</span><input type="password" id="anthropicApiKey" placeholder="sk-ant-…" autocomplete="off"></label>
+      <div class="hint">到 <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a> 建立 key。金鑰只存在你的瀏覽器，直接呼叫 Anthropic，不經過任何第三方伺服器。</div>
+      <div class="row2">
+        <label class="f"><span>模型</span>
+          <select id="anthropicModelSel">
+            <option value="claude-opus-5-5">Claude Opus 5.5（預設，最準）</option>
+            <option value="claude-sonnet-5-5">Claude Sonnet 5.5（較快較省）</option>
+            <option value="claude-haiku-5-5">Claude Haiku 5.5（最快最省）</option>
+            <option value="custom">自訂…</option>
+          </select>
+        </label>
+        <label class="f"><span>思考深度（effort）</span>
+          <select id="anthropicEffort">
+            <option value="low">低（翻譯建議，速度最快）</option>
+            <option value="medium">中</option>
+            <option value="high">高（最慢、最貴）</option>
+          </select>
+        </label>
+      </div>
+      <label class="f" id="anthropicCustomWrap" style="display:none"><span>自訂模型 ID</span><input type="text" id="anthropicModel" placeholder="claude-…"></label>
+      <label class="inline"><input type="checkbox" id="anthropicFallback"> 啟用伺服器端備援（模型拒答時自動改用備援模型完成翻譯）</label>
+      <label class="f"><span>API 端點（進階；透過閘道或代理時才需要修改）</span><input type="text" id="anthropicBaseUrl" placeholder="https://api.anthropic.com"></label>
+    </div>
+
+    <div class="prov" id="prov-openai">
+      <label class="f"><span>API 端點（Base URL）</span><input type="text" id="openaiBaseUrl" placeholder="https://api.openai.com/v1"></label>
+      <div class="hint">範例：OpenRouter <code>https://openrouter.ai/api/v1</code>、Gemini <code>https://generativelanguage.googleapis.com/v1beta/openai</code>、本機 Ollama <code>http://localhost:11434/v1</code>、LM Studio <code>http://localhost:1234/v1</code></div>
+      <div class="row2">
+        <label class="f"><span>API key（本機模型可留空）</span><input type="password" id="openaiApiKey" autocomplete="off"></label>
+        <label class="f"><span>模型名稱</span><input type="text" id="openaiModel" placeholder="例如 gpt-4.1、gemini-2.5-pro、qwen3:14b"></label>
+      </div>
+    </div>
+
+    <div class="prov" id="prov-deepl">
+      <label class="f"><span>DeepL API key</span><input type="password" id="deeplApiKey" placeholder="xxxxxxxx-…:fx" autocomplete="off"></label>
+      <div class="hint">免費方案 key 結尾為 <code>:fx</code>，會自動使用 api-free 端點。DeepL 不支援詞彙表與自訂指示。</div>
+    </div>
+
+    <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+      <button id="testBtn">測試連線</button><span class="msg" id="testMsg"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>語言</h2>
+    <label class="f"><span>翻譯成</span>
+      <select id="targetLanguage">
+        <option value="zh-TW">繁體中文（台灣）</option>
+        <option value="zh-HK">繁體中文（香港）</option>
+        <option value="zh-CN">簡體中文</option>
+      </select>
+    </label>
+    <div class="f"><span class="hint" style="margin-bottom:4px">要翻譯的來源語言（其他語言的文字會保持原樣）</span>
+      <div class="inline">
+        <label><input type="checkbox" name="src" value="en"> 英文</label>
+        <label><input type="checkbox" name="src" value="ja"> 日文</label>
+        <label><input type="checkbox" name="src" value="ko"> 韓文</label>
+        <label><input type="checkbox" name="src" value="any"> 任何語言（全部交給模型判斷，較耗費用）</label>
+      </div>
+    </div>
+    <div class="f"><span class="hint" style="margin-bottom:4px">自動翻譯：開啟網頁時若偵測到以下語言就自動翻譯</span>
+      <div class="inline">
+        <label><input type="checkbox" name="autoLang" value="en"> 英文</label>
+        <label><input type="checkbox" name="autoLang" value="ja"> 日文</label>
+        <label><input type="checkbox" name="autoLang" value="ko"> 韓文</label>
+      </div>
+    </div>
+    <label class="f"><span>永遠自動翻譯的網站（每行一個網域，也可在彈出視窗勾選）</span><textarea id="autoSites" placeholder="example.com&#10;docs.github.com"></textarea></label>
+  </section>
+
+  <section>
+    <h2>顯示</h2>
+    <div class="row2">
+      <label class="f"><span>預設顯示方式</span>
+        <select id="displayMode">
+          <option value="replace">取代原文（像 Chrome 內建翻譯）</option>
+          <option value="bilingual">雙語對照（原文下方顯示譯文）</option>
+        </select>
+      </label>
+      <label class="f"><span>雙語對照的譯文樣式</span>
+        <select id="bilingualStyle">
+          <option value="underline">虛線底線</option>
+          <option value="muted">淡化</option>
+          <option value="highlight">淡黃底色</option>
+          <option value="none">無</option>
+        </select>
+      </label>
+    </div>
+    <label class="inline"><input type="checkbox" id="lazy"> 只翻譯看得到的區域（捲動到哪翻到哪，省費用；取消則一次翻整頁）</label><br>
+    <label class="inline"><input type="checkbox" id="showToast"> 翻譯時在右下角顯示進度</label>
+  </section>
+
+  <section>
+    <h2>翻譯品質</h2>
+    <label class="f"><span>詞彙表（每行「原文 = 譯文」，模型會固定使用這些譯法）</span><textarea id="glossary" placeholder="pull request = 拉取請求&#10;repository = 儲存庫&#10;Acme Inc. = Acme 公司"></textarea></label>
+    <label class="f"><span>額外指示（給模型的補充說明，例如語氣、領域）</span><textarea id="customInstructions" placeholder="這是程式設計相關網站，技術名詞保留英文；語氣口語一點。"></textarea></label>
+  </section>
+
+  <section>
+    <h2>進階</h2>
+    <div class="row2">
+      <label class="f"><span>每批最多字元數</span><input type="text" id="batchChars" inputmode="numeric"></label>
+      <label class="f"><span>每批最多段數</span><input type="text" id="batchItems" inputmode="numeric"></label>
+      <label class="f"><span>同時請求數</span><input type="text" id="concurrency" inputmode="numeric"></label>
+    </div>
+    <label class="inline"><input type="checkbox" id="cacheEnabled"> 快取翻譯結果（相同文字不重複付費）</label>
+    <div style="margin-top:10px; display:flex; gap:10px; align-items:center;"><button id="clearCache">清除快取</button><span class="msg" id="cacheMsg"></span></div>
+    <label class="inline" style="margin-top:10px"><input type="checkbox" id="debug"> 在網頁主控台輸出除錯訊息</label>
+  </section>
+</main>
+<div class="bar"><button class="primary" id="save">儲存設定</button><span class="msg" id="saveMsg"></span></div>
+<script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Fixture page for translator</title>
+<style>.hidden{display:none}</style></head>
+<body>
+<h1 id="h1">Welcome to the <em>example</em> site</h1>
+<p id="p1">This is a paragraph with a <a href="/docs">link to docs</a>, some <strong>bold text</strong>, inline <code>code()</code> and an image <img src="x.png" alt="x">.<br>Second line after break.</p>
+<div id="mixed">Leading text before block <p>Inner paragraph text</p> trailing text after block</div>
+<ul><li id="li1">First item</li><li id="li2">Second item with <span class="notranslate">KeepMe</span></li></ul>
+<p id="zh">這一段已經是中文，不應該被翻譯。</p>
+<p id="num">12345 - 67%</p>
+<p id="url">https://example.com/path</p>
+<pre id="pre">preformatted  text   stays</pre>
+<p id="notr" translate="no">Do not translate me</p>
+<button id="btn">Click here</button>
+<table><tr><td id="td">Cell content</td></tr></table>
+<p id="ja">これは日本語の文章です。</p>
+<p id="ko">이것은 한국어 문장입니다.</p>
+<div id="shadow-host"></div>
+<div class="hidden" id="hidden">Hidden text block</div>
+<div id="dyn"></div>
+<div style="height:3000px"></div>
+<p id="far">Far away paragraph at the bottom</p>
+<script>
+  const host = document.getElementById('shadow-host');
+  const root = host.attachShadow({mode:'open'});
+  root.innerHTML = '<p id="sp">Shadow paragraph with <b>bold</b></p>';
+</script>
+</body>
+</html>
