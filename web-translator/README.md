@@ -32,7 +32,7 @@
 
 | 供應商 | 哪裡拿 | 費用 |
 | --- | --- | --- |
-| Anthropic Claude | https://console.anthropic.com/ → API Keys | 按用量計費。一般文章頁面約數千 token，用 Opus 5.5 約新台幣 0.3–1 元／頁；Haiku 5.5 便宜約 40 倍。 |
+| Anthropic Claude | https://console.anthropic.com/ → API Keys | 按用量計費。以 1,500 字英文文章整頁翻完估算：Haiku 5.5 約新台幣 0.06 元、Sonnet 5.5 約 1.2 元、Opus 5.5 約 2.5 元；預設只翻看得到的區域，實際通常更少。 |
 | OpenAI 相容 | 各家平台自行申請；本機 Ollama／LM Studio 免費 | 視平台 |
 | DeepL | https://www.deepl.com/pro-api | 免費方案每月 50 萬字元 |
 
