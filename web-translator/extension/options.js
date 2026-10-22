@@ -4,7 +4,7 @@ const send = (msg) => new Promise((r) => chrome.runtime.sendMessage(msg, (res) =
 const TEXT_FIELDS = ['anthropicApiKey', 'anthropicBaseUrl', 'anthropicEffort', 'openaiBaseUrl', 'openaiApiKey', 'openaiModel', 'deeplApiKey', 'targetLanguage', 'displayMode', 'bilingualStyle', 'glossary', 'customInstructions', 'provider'];
 const BOOL_FIELDS = ['anthropicFallback', 'lazy', 'showToast', 'cacheEnabled', 'debug'];
 const NUM_FIELDS = ['batchChars', 'batchItems', 'concurrency'];
-const KNOWN_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
+const KNOWN_MODELS = ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'];
 
 function showProvider() {
   const p = $('provider').value;
@@ -15,7 +15,7 @@ function load(s) {
   for (const f of TEXT_FIELDS) $(f).value = s[f] ?? '';
   for (const f of BOOL_FIELDS) $(f).checked = !!s[f];
   for (const f of NUM_FIELDS) $(f).value = s[f] ?? '';
-  const m = s.anthropicModel || 'claude-opus-5-5';
+  const m = s.anthropicModel || 'claude-haiku-5-5';
   if (KNOWN_MODELS.includes(m)) { $('anthropicModelSel').value = m; $('anthropicModel').value = ''; }
   else { $('anthropicModelSel').value = 'custom'; $('anthropicModel').value = m; }
   $('anthropicCustomWrap').style.display = $('anthropicModelSel').value === 'custom' ? '' : 'none';
@@ -30,7 +30,7 @@ function collect() {
   for (const f of TEXT_FIELDS) out[f] = $(f).value.trim();
   for (const f of BOOL_FIELDS) out[f] = $(f).checked;
   for (const f of NUM_FIELDS) { const n = parseInt($(f).value, 10); if (Number.isFinite(n) && n > 0) out[f] = n; }
-  out.anthropicModel = $('anthropicModelSel').value === 'custom' ? ($('anthropicModel').value.trim() || 'claude-opus-5-5') : $('anthropicModelSel').value;
+  out.anthropicModel = $('anthropicModelSel').value === 'custom' ? ($('anthropicModel').value.trim() || 'claude-haiku-5-5') : $('anthropicModelSel').value;
   let src = Array.from(document.querySelectorAll('input[name=src]:checked')).map((c) => c.value);
   if (!src.length) src = ['en'];
   out.sourceLanguages = src;

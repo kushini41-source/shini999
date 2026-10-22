@@ -9,7 +9,7 @@ export const DEFAULTS = {
   provider: 'anthropic',             // anthropic | openai | deepl
   anthropicApiKey: '',
   anthropicBaseUrl: 'https://api.anthropic.com',
-  anthropicModel: 'claude-opus-5-5',
+  anthropicModel: 'claude-haiku-5-5',
   anthropicEffort: 'low',            // low | medium | high
   anthropicFallback: true,           // 伺服器端 fallbacks: "default"
   openaiBaseUrl: 'https://api.openai.com/v1',

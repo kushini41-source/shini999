@@ -64,7 +64,7 @@ try {
 
   // 寫入設定（指向假伺服器）
   await sw.evaluate(async (base) => {
-    await chrome.storage.sync.set({ settings: { provider: 'anthropic', anthropicApiKey: 'sk-ant-test', anthropicBaseUrl: base, anthropicModel: 'claude-opus-5-5', anthropicEffort: 'low', lazy: false, displayMode: 'replace', glossary: 'docs = 文件', sourceLanguages: ['en'] } });
+    await chrome.storage.sync.set({ settings: { provider: 'anthropic', anthropicApiKey: 'sk-ant-test', anthropicBaseUrl: base, anthropicEffort: 'low', lazy: false, displayMode: 'replace', glossary: 'docs = 文件', sourceLanguages: ['en'] } });
   }, base);
 
   // 開啟頁面並觸發翻譯（模擬快捷鍵／彈出視窗走的 toggleTab 路徑）
@@ -97,7 +97,7 @@ try {
   assert.equal(req.headers['anthropic-version'], '2026-10-21');
   assert.equal(req.headers['anthropic-dangerous-direct-browser-access'], 'true');
   assert.equal(req.headers['anthropic-beta'], 'server-side-fallback-2026-07-01');
-  assert.equal(req.body.model, 'claude-opus-5-5');
+  assert.equal(req.body.model, 'claude-haiku-5-5'); // 預設模型
   assert.equal(req.body.fallbacks, 'default');
   assert.equal(req.body.output_config.effort, 'low');
   assert.equal(req.body.output_config.format.type, 'json_schema');

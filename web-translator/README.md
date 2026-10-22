@@ -14,7 +14,7 @@
 - **自動翻譯**：可設定「永遠翻譯這個網站」或「偵測到英文／日文／韓文網頁就自動翻譯」。
 - **品質控制**：詞彙表（固定術語譯法）、額外指示（語氣、領域），系統提示詞已要求台灣用語與全形標點。
 - **多種後端**：
-  - Anthropic Claude（預設 `claude-opus-5-5`，可改 Sonnet／Haiku；使用結構化輸出確保回傳格式，並啟用伺服器端備援）
+  - Anthropic Claude（預設 `claude-haiku-5-5`，可改 Sonnet／Opus；使用結構化輸出確保回傳格式，並啟用伺服器端備援）
   - 任何 OpenAI 相容端點：OpenAI、Gemini、DeepSeek、OpenRouter、Groq，或本機免費的 Ollama／LM Studio
   - DeepL API（免費方案每月 50 萬字元）
 
