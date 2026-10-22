@@ -19,7 +19,7 @@ function load(s) {
   if (KNOWN_MODELS.includes(m)) { $('anthropicModelSel').value = m; $('anthropicModel').value = ''; }
   else { $('anthropicModelSel').value = 'custom'; $('anthropicModel').value = m; }
   $('anthropicCustomWrap').style.display = $('anthropicModelSel').value === 'custom' ? '' : 'none';
-  document.querySelectorAll('input[name=src]').forEach((c) => { c.checked = (s.sourceLanguages || ['en']).includes(c.value); });
+  document.querySelectorAll('input[name=src]').forEach((c) => { c.checked = (s.sourceLanguages || ['en', 'ja', 'ko']).includes(c.value); });
   document.querySelectorAll('input[name=autoLang]').forEach((c) => { c.checked = (s.autoLanguages || []).includes(c.value); });
   $('autoSites').value = (s.autoSites || []).join('\n');
   showProvider();
@@ -32,7 +32,7 @@ function collect() {
   for (const f of NUM_FIELDS) { const n = parseInt($(f).value, 10); if (Number.isFinite(n) && n > 0) out[f] = n; }
   out.anthropicModel = $('anthropicModelSel').value === 'custom' ? ($('anthropicModel').value.trim() || 'claude-haiku-5-5') : $('anthropicModelSel').value;
   let src = Array.from(document.querySelectorAll('input[name=src]:checked')).map((c) => c.value);
-  if (!src.length) src = ['en'];
+  if (!src.length) src = ['en', 'ja', 'ko'];
   out.sourceLanguages = src;
   out.autoLanguages = Array.from(document.querySelectorAll('input[name=autoLang]:checked')).map((c) => c.value);
   out.autoSites = $('autoSites').value.split(/\r?\n/).map((x) => x.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '')).filter(Boolean);

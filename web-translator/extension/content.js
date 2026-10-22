@@ -94,7 +94,7 @@
     const t = plain.trim();
     if (!t || !RE_LETTER.test(t)) return false;          // 沒有任何字母
     if (RE_URLISH.test(t)) return false;                  // 純網址／Email／網域
-    const src = state.settings?.sourceLanguages || ['en'];
+    const src = state.settings?.sourceLanguages || ['en', 'ja', 'ko'];
     const any = src.includes('any');
     const hasKana = RE_KANA.test(t);
     const hasHangul = RE_HANGUL.test(t);

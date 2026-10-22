@@ -17,7 +17,7 @@ export const DEFAULTS = {
   openaiModel: '',
   deeplApiKey: '',
   targetLanguage: 'zh-TW',           // zh-TW | zh-HK | zh-CN
-  sourceLanguages: ['en'],           // en | ja | ko | any
+  sourceLanguages: ['en', 'ja', 'ko'], // en | ja | ko | any
   displayMode: 'replace',            // replace | bilingual
   bilingualStyle: 'underline',       // underline | muted | highlight | none
   lazy: true,                        // 只翻看得到的區域（省錢、較快）
@@ -161,7 +161,7 @@ function getSem(n) {
 // ---------- 提示詞 ----------
 function buildSystemPrompt(settings, context) {
   const target = TARGET_NAMES[settings.targetLanguage] || TARGET_NAMES['zh-TW'];
-  const srcs = (settings.sourceLanguages || ['en']).map((s) => SOURCE_NAMES[s] || s).join(' / ');
+  const srcs = (settings.sourceLanguages || DEFAULTS.sourceLanguages).map((s) => SOURCE_NAMES[s] || s).join(' / ');
   const lines = [
     `You are a professional translator. Translate web page text segments from ${srcs} into ${target}.`,
     '',
@@ -324,7 +324,7 @@ async function translateDeepL(texts, settings) {
   const free = /:fx$/.test(settings.deeplApiKey);
   const url = free ? 'https://api-free.deepl.com/v2/translate' : 'https://api.deepl.com/v2/translate';
   const target = settings.targetLanguage === 'zh-CN' ? 'ZH-HANS' : 'ZH-HANT';
-  const src = settings.sourceLanguages || ['en'];
+  const src = settings.sourceLanguages || DEFAULTS.sourceLanguages;
   const body = { text: texts, target_lang: target, tag_handling: 'xml', preserve_formatting: true };
   if (src.length === 1 && src[0] !== 'any') body.source_lang = src[0].toUpperCase();
   const data = await httpJson(url, {
