@@ -97,7 +97,7 @@ try {
   assert.equal(req.headers['anthropic-version'], '2026-10-21');
   assert.equal(req.headers['anthropic-dangerous-direct-browser-access'], 'true');
   assert.equal(req.headers['anthropic-beta'], 'server-side-fallback-2026-07-01');
-  assert.equal(req.body.model, 'claude-haiku-5-5'); // 預設模型
+  assert.equal(req.body.model, 'claude-sonnet-5-5'); // 預設模型
   assert.equal(req.body.fallbacks, 'default');
   assert.equal(req.body.output_config.effort, 'low');
   assert.equal(req.body.output_config.format.type, 'json_schema');

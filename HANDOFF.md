@@ -7,7 +7,7 @@
 - 位置：repo `kushini41-source/shini999`，分支 `claude/beautiful-bohr-pho4sl`，資料夾 `web-translator/`。
 - 安裝包：`web-translator/精準網頁翻譯-extension.zip`；載入方式為 Chrome「載入未封裝項目」選 `web-translator/extension/`。
 - 目的：取代 Chrome 內建機翻。Manifest V3，content script 以行內 run 為單元、用 `<gN>…</gN>` / `<xN/>` 標記保留排版；支援取代原文／雙語對照、延遲翻譯、動態內容、Shadow DOM、iframe、快取、自動翻譯網站／語言、詞彙表。
-- 預設：供應商 Anthropic，模型 `claude-haiku-5-5`（約新台幣 0.06 元／頁），effort low，來源語言英／日／韓全開，目標 zh-TW，取代原文模式，只翻看得到的區域。也支援 OpenAI 相容端點（含本機 Ollama／LM Studio）與 DeepL。
+- 預設：供應商 Anthropic，模型 `claude-sonnet-5-5`（約新台幣 1.2 元／頁），effort low，來源語言英／日／韓全開，目標 zh-TW，取代原文模式，只翻看得到的區域。也支援 OpenAI 相容端點（含本機 Ollama／LM Studio）與 DeepL。
 - 測試：`cd web-translator && npm test`（單元測試 + 在 Chromium 載入真擴充功能的端對端測試，API 指向本機假伺服器），目前全部通過。
 - 尚未用真實 API key 驗證翻譯品質；使用者還沒回報實際使用結果。
 - 使用者沒有 API key 時無法翻譯；曾詢問是否內建模型，已說明必須外接 API。
