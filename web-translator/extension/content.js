@@ -185,7 +185,8 @@
       if (run.length) {
         if (!onlyContaining || run.includes(onlyContaining)) {
           const lines = splitLines(parent, run);
-          if (lines) for (const l of lines) makeUnit(parent, l.nodes, out, l.sep);
+          if (lines && lines.group) makeLineGroup(parent, lines.group, out);
+          else if (lines) for (const l of lines) makeUnit(parent, l.nodes, out, l.sep);
           else makeUnit(parent, run, out);
         }
         run = [];
@@ -213,9 +214,15 @@
     try { preWs = !!el && /^(pre|break-spaces)/.test(getComputedStyle(el).whiteSpace); } catch (_) { /* ignore */ }
     const NL = /\r?\n/;
     const isBr = (n) => n.nodeType === 1 && n.tagName === 'BR';
-    const hasNl = preWs && run.some((n) => n.nodeType === 3 && NL.test(n.nodeValue));
     const brCount = run.filter(isBr).length;
-    if (!hasNl && !brCount) return null;
+    // 單一文字節點、用換行字元分行（YouTube Music 歌詞）：不切節點、不換節點，只改它的文字。
+    // 網站換歌時是直接改寫這個節點的內容，節點一旦被換掉，網站的更新就看不到了。
+    if (preWs && !brCount) {
+      const solid = run.filter((n) => !(n.nodeType === 3 && !/\S/.test(n.nodeValue)));
+      if (solid.length === 1 && solid[0].nodeType === 3 && NL.test(solid[0].nodeValue)) return { group: solid[0] };
+    }
+    const hasNl = false;
+    if (!brCount) return null;
 
     // <br>：像歌詞／詩（4 行以上且每行不長）就逐行切；否則只在連續兩個 <br>（段落間隔）處切
     let brMode = 'none';
@@ -234,16 +241,7 @@
     }
     if (!hasNl && brMode === 'none') return null;
 
-    // 把含換行的文字節點實際切開（切開後 DOM 序列化結果不變）
-    const expanded = [];
-    for (const n of run) {
-      if (hasNl && n.nodeType === 3 && NL.test(n.nodeValue)) {
-        const parts = n.nodeValue.split(/((?:\r?\n)+)/).filter((p) => p.length);
-        let cur = n;
-        for (let i = 0; i < parts.length - 1; i++) { const rest = cur.splitText(parts[i].length); expanded.push(cur); cur = rest; }
-        expanded.push(cur);
-      } else expanded.push(n);
-    }
+    const expanded = run;
 
     const lines = [];
     let cur = [], lastSep = hasNl ? 'nl' : 'br';
@@ -266,6 +264,57 @@
     push(lastSep);
     if (lines.length < 2) return [{ nodes: expanded, sep: null }];
     return lines;
+  }
+
+  // 多行文字節點：每行一個「虛擬單元」，共用同一個文字節點，譯文回來後重組整個節點的文字
+  function makeLineGroup(parent, tn, out) {
+    const existing = state.nodeToUnit.get(tn);
+    if (existing && existing.state !== 'stale') {
+      if (existing.isGroup ? groupAttached(existing) : true) return;
+      markGroupStale(existing);
+    }
+    const group = { isGroup: true, tn, parent, orig: tn.nodeValue, written: null, state: 'active', parts: [] };
+    const pieces = tn.nodeValue.split(/((?:\r?\n)+)/);
+    const made = [];
+    pieces.forEach((piece, i) => {
+      if (i % 2 === 1) { group.parts.push({ sep: piece }); return; }
+      const m = piece.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      const part = { raw: piece, lead: m[1], core: m[2], trail: m[3], unit: null };
+      group.parts.push(part);
+      if (!m[2] || !shouldTranslateText(m[2])) return;
+      const unit = {
+        id: state.units.length, parent, nodes: [tn], elems: [], text: esc(m[2]), prefix: '', suffix: '',
+        state: 'pending', translation: null, snapshot: null, currentNodes: null, inserted: null, lineSep: null,
+        group, plain: null
+      };
+      part.unit = unit;
+      state.units.push(unit);
+      made.push(unit);
+    });
+    if (!made.length) return;
+    state.nodeToUnit.set(tn, group);
+    out.push(...made);
+  }
+
+  function groupAttached(g) {
+    return g.state !== 'stale' && g.tn.parentNode === g.parent && g.tn.nodeValue === (g.written ?? g.orig);
+  }
+
+  function markGroupStale(g) {
+    g.state = 'stale';
+    for (const p of g.parts) if (p.unit) p.unit.state = 'stale';
+  }
+
+  function renderGroup(g) {
+    const bilingual = (state.settings.displayMode || 'replace') === 'bilingual';
+    const text = g.parts.map((p) => {
+      if (p.sep !== undefined) return p.sep;
+      if (!p.unit || p.unit.state !== 'done') return p.raw;
+      return bilingual ? `${p.raw}\n${p.lead}${p.unit.plain}` : `${p.lead}${p.unit.plain}${p.trail}`;
+    }).join('');
+    const changed = g.parts.some((p) => p.unit && p.unit.state === 'done');
+    g.written = changed ? text : null;
+    if (g.tn.nodeValue !== text) g.tn.nodeValue = text;
   }
 
   function makeUnit(parent, nodes, out, lineSep) {
@@ -390,7 +439,16 @@
 
   // ---------- 套用譯文 ----------
   function unitAttached(unit) {
+    if (unit.group) return groupAttached(unit.group);
     return unit.nodes.every((n) => n.parentNode === unit.parent);
+  }
+
+  // 單元的原文是否仍和收集當時一樣（未翻譯狀態下才有意義）
+  function unitFresh(unit) {
+    if (!unitAttached(unit)) return false;
+    if (unit.group) return true;
+    const ser = serialize(unit.nodes);
+    return !!ser && ser.text === unit.text;
   }
 
   function takeSnapshot(unit) {
@@ -415,6 +473,15 @@
     for (const t of tree) {
       if (t.type === 'text') {
         if (!t.value) continue;
+        // 取代模式盡量沿用原本的文字節點：React、Polymer 等框架會持有節點參考並直接改寫內容，
+        // 換成新節點的話，網站之後的更新就不會顯示出來
+        const reuse = !clone && unit.pool && unit.pool.length ? unit.pool.shift() : null;
+        if (reuse) {
+          reuse.nodeValue = t.value;
+          unit.written.set(reuse, t.value);
+          out.push(reuse);
+          continue;
+        }
         const tn = document.createTextNode(t.value);
         state.ownNodes.add(tn);
         out.push(tn);
@@ -443,6 +510,16 @@
   }
 
   function applyTranslation(unit, translated) {
+    if (unit.group) {
+      const g = unit.group;
+      if (!groupAttached(g)) { markGroupStale(g); return false; }
+      unit.translation = translated;
+      unit.plain = unesc(translated.replace(/<\/?[gx]\d+\s*\/?>/g, '')).replace(/\s*\r?\n\s*/g, ' ').trim();
+      state.textCache.set(unit.text, translated);
+      unit.state = 'done';
+      renderGroup(g);
+      return true;
+    }
     if (!unitAttached(unit)) { unit.state = 'stale'; return false; }
     const mode = state.settings.displayMode || 'replace';
     const { tree, used } = parseTranslation(translated, unit.elems.length);
@@ -477,7 +554,12 @@
       unit.inserted = wrap;
     } else {
       unit.snapshot = takeSnapshot(unit);
+      unit.pool = Array.from(unit.snapshot.textValues.keys());
+      // 沿用的文字節點（含行內元素裡面的）都屬於這個單元，之後不可再被當成新內容收集
+      for (const tn of unit.pool) state.nodeToUnit.set(tn, unit);
+      unit.written = new Map();
       const built = buildNodes(tree, unit, false);
+      unit.pool = null;
       const anchor = unit.nodes[unit.nodes.length - 1].nextSibling;
       for (const n of unit.nodes) if (n.parentNode === unit.parent) unit.parent.removeChild(n);
       for (const n of built) unit.parent.insertBefore(n, anchor);
@@ -529,6 +611,12 @@
 
   function restoreUnit(unit) {
     if (unit.state !== 'done') return;
+    if (unit.group) {
+      const g = unit.group;
+      unit.state = 'pending';
+      if (groupAttached(g)) renderGroup(g); // 逐行退回；全部退回後就是原文
+      return;
+    }
     if (unit.inserted) {
       unit.inserted.remove();
       unit.inserted = null;
@@ -677,8 +765,15 @@
         if (isOwn(tn)) continue;
         if (!tn.isConnected) continue; // 已被我們換下的原文節點
         const u = state.nodeToUnit.get(tn);
+        if (u && u.isGroup) {
+          if (groupAttached(u)) continue;            // 是我們自己寫入的
+          markGroupStale(u);                          // 網站改寫了內容（例如換歌）→ 重新收集
+          if (tn.parentNode && !seen.has(tn.parentNode)) { seen.add(tn.parentNode); collectRuns(tn.parentNode, fresh); }
+          continue;
+        }
         if (u && u.state !== 'stale') {
-          // 原文其實沒變（例如我們自己把文字節點依換行切開）→ 忽略
+          if (u.written && u.written.get(tn) === tn.nodeValue) continue; // 是我們自己寫入的譯文
+          // 原文其實沒變 → 忽略
           const ser = unitAttached(u) ? serialize(u.nodes) : null;
           if (ser && ser.text === u.text) continue;
         }
@@ -721,7 +816,13 @@
     if (!state.pageLang) detectPageLanguage();
     const fresh = [];
     // 復用先前已收集但被還原的單元
-    for (const u of state.units) if (u.state === 'pending' && unitAttached(u)) fresh.push(u);
+    // 停用期間網站可能改過內容：原文已不同的舊單元作廢，交給下面重新收集
+    for (const u of state.units) {
+      if (u.state !== 'pending') continue;
+      if (unitFresh(u)) fresh.push(u);
+      else if (u.group) markGroupStale(u.group);
+      else u.state = 'stale';
+    }
     const startCount = state.units.length;
     collect(document.body || document.documentElement, fresh);
     log('units', fresh.length, 'new', state.units.length - startCount);
@@ -737,7 +838,7 @@
     if (state.flushTimer) { clearTimeout(state.flushTimer); state.flushTimer = null; }
     for (const u of state.units) {
       if (u.state === 'done') restoreUnit(u);
-      else if (u.state === 'queued' || u.state === 'error' || u.state === 'stale') u.state = 'pending';
+      else if (u.state === 'queued' || u.state === 'error') u.state = 'pending';
     }
     if (state.io) { state.io.disconnect(); state.io = null; }
     hideToast();

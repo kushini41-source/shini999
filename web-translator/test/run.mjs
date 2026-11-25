@@ -297,6 +297,45 @@ await test('lyrics replaced by the page (next song) get translated again', async
   assert.equal(await page.evaluate(() => document.getElementById('lyrics').textContent), '【あの日の悲しみさえ】\n【あの日の苦しみさえ】');
 }, lyricsFixture);
 
+for (const mode of ['replace', 'bilingual']) {
+  await test(`lyrics rewritten in place by the page (how YouTube Music changes songs) — ${mode}`, async (page) => {
+    await inject(page, { sourceLanguages: ['en', 'ja', 'ko'], displayMode: mode });
+    // 網站持有這個文字節點的參考，換歌時直接改寫它的內容
+    await page.evaluate(() => { window.__node = document.getElementById('lyrics').firstChild; });
+    await page.evaluate(() => window.__send({ type: 'translatePage' }));
+    await wait(400);
+    assert.ok(await page.evaluate(() => window.__node.isConnected && document.getElementById('lyrics').childNodes.length === 1), 'original text node kept in place');
+    await page.evaluate(() => { window.__node.data = '誰かを守って救うことが何より大切だった\n自分の幼さも知らず大口叩きまくって'; });
+    await wait(500);
+    const got = await page.evaluate(() => document.getElementById('lyrics').textContent);
+    const A = '誰かを守って救うことが何より大切だった', B = '自分の幼さも知らず大口叩きまくって';
+    assert.equal(got, mode === 'replace' ? `【${A}】\n【${B}】` : `${A}\n【${A}】\n${B}\n【${B}】`);
+    // 顯示原文後再換歌：應顯示新歌原文，再翻譯也要翻新歌
+    await page.evaluate(() => window.__send({ type: 'restorePage' }));
+    await wait(100);
+    assert.equal(await page.evaluate(() => document.getElementById('lyrics').textContent), `${A}\n${B}`);
+    await page.evaluate(() => { window.__node.data = 'あの日の悲しみさえ\nあの日の苦しみさえ'; });
+    await wait(200);
+    assert.equal(await page.evaluate(() => document.getElementById('lyrics').textContent), 'あの日の悲しみさえ\nあの日の苦しみさえ');
+    await page.evaluate(() => window.__send({ type: 'translatePage' }));
+    await wait(400);
+    const got2 = await page.evaluate(() => document.getElementById('lyrics').textContent);
+    assert.equal(got2, mode === 'replace' ? '【あの日の悲しみさえ】\n【あの日の苦しみさえ】' : 'あの日の悲しみさえ\n【あの日の悲しみさえ】\nあの日の苦しみさえ\n【あの日の苦しみさえ】');
+  }, lyricsFixture);
+}
+
+await test('replace mode keeps the original text node so framework updates still show (React-style)', async (page) => {
+  await inject(page);
+  await page.evaluate(() => { window.__node = document.getElementById('li1').firstChild; });
+  await page.evaluate(() => window.__send({ type: 'translatePage' }));
+  await wait(400);
+  assert.equal(await page.evaluate(() => document.getElementById('li1').textContent), '【FIRST ITEM】');
+  assert.ok(await page.evaluate(() => window.__node.isConnected), 'same text node still in the document');
+  await page.evaluate(() => { window.__node.data = 'Updated item'; });
+  await wait(500);
+  assert.equal(await page.evaluate(() => document.getElementById('li1').textContent), '【UPDATED ITEM】');
+});
+
 await browser.close();
 if (failures) { console.error(`${failures} failure(s)`); process.exit(1); }
 console.log('all content tests passed');
