@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 const here = path.resolve(new URL('.', import.meta.url).pathname);
 const contentJs = fs.readFileSync(path.join(here, '../extension/content.js'), 'utf8');
 const fixture = fs.readFileSync(path.join(here, 'fixture.html'), 'utf8');
+const lyricsFixture = fs.readFileSync(path.join(here, 'fixture-lyrics.html'), 'utf8');
 
 // 假翻譯：標籤外的文字轉大寫並加上【】，模擬「保留標籤的譯文」
 const fakeTranslate = (s) => '【' + s.replace(/(<\/?[gx]\d+\/?>)|([^<]+)/g, (m, tag, txt) => tag ? tag : txt.toUpperCase()) + '】';
@@ -41,11 +42,11 @@ function shim(settingsOverride = {}) {
 
 const browser = await chromium.launch();
 let failures = 0;
-async function test(name, fn) {
+async function test(name, fn, html = fixture) {
   const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
   page.on('pageerror', (e) => { console.error('  pageerror:', e.message); failures++; });
   try {
-    await page.setContent(fixture);
+    await page.setContent(html);
     await fn(page);
     console.log('✓', name);
   } catch (e) {
@@ -226,6 +227,75 @@ await test('error from background surfaces in status and toast', async (page) =>
   assert.ok(r.toast.includes('尚未設定 API key'));
   assert.equal(r.h1, 'Welcome to the example site');
 });
+
+// ---------- 歌詞／逐行內容 ----------
+const JA = ['夢ならばどれほどよかったでしょう', '未だにあなたのことを夢にみる', '戻らない幸せがあることを', '最後にあなたが教えてくれた'];
+
+await test('lyrics (pre-wrap, YouTube Music style): one unit per line, replace keeps line structure, exact restore', async (page) => {
+  await inject(page, { sourceLanguages: ['en', 'ja', 'ko'] });
+  const before = await page.evaluate(() => document.body.innerHTML);
+  await page.evaluate(() => window.__send({ type: 'translatePage' }));
+  await wait(400);
+  const r = await page.evaluate(() => ({
+    lyrics: document.getElementById('lyrics').textContent,
+    tabs: document.getElementById('tabs').textContent,
+    source: document.getElementById('source').textContent,
+    texts: window.__calls.filter((c) => c.type === 'translate').flatMap((c) => c.texts)
+  }));
+  assert.equal(r.lyrics, `【${JA[0]}】\n【${JA[1]}】\n\n【${JA[2]}】\n【${JA[3]}】`);
+  assert.equal(r.tabs, '即將播放 歌詞', 'Chinese UI untouched');
+  assert.equal(r.source, '【SOURCE: MUSIXMATCH】');
+  for (const l of JA) assert.ok(r.texts.includes(l), `line sent as its own segment: ${l}`);
+  // 同一首歌的各行在同一批、依序送出（模型才有上下文）
+  const call = await page.evaluate((first) => window.__calls.find((c) => c.type === 'translate' && c.texts.includes(first)).texts, JA[0]);
+  assert.deepEqual(call.filter((t) => /[\u3040-\u30ff]/.test(t)), JA);
+  await page.evaluate(() => window.__send({ type: 'restorePage' }));
+  await wait(100);
+  assert.equal(await page.evaluate(() => document.body.innerHTML), before);
+}, lyricsFixture);
+
+await test('lyrics bilingual: translation appears under each original line', async (page) => {
+  await inject(page, { sourceLanguages: ['en', 'ja', 'ko'], displayMode: 'bilingual', bilingualStyle: 'none' });
+  const before = await page.evaluate(() => document.body.innerHTML);
+  await page.evaluate(() => window.__send({ type: 'translatePage' }));
+  await wait(400);
+  const r = await page.evaluate(() => ({
+    lyrics: document.getElementById('lyrics').textContent,
+    lyricsLines: document.getElementById('lyrics').innerText.split('\n'),
+    verseLines: document.getElementById('verse').innerText.split('\n'),
+    verseHtml: document.getElementById('verse').innerHTML,
+    paras: document.getElementById('paras').innerText.split('\n'),
+    single: document.getElementById('single').innerHTML
+  }));
+  assert.equal(r.lyrics, `${JA[0]}\n【${JA[0]}】\n${JA[1]}\n【${JA[1]}】\n\n${JA[2]}\n【${JA[2]}】\n${JA[3]}\n【${JA[3]}】`);
+  assert.deepEqual(r.lyricsLines, [JA[0], `【${JA[0]}】`, JA[1], `【${JA[1]}】`, '', JA[2], `【${JA[2]}】`, JA[3], `【${JA[3]}】`]);
+  assert.deepEqual(r.verseLines, [
+    'Hello darkness my old friend', '【HELLO DARKNESS MY OLD FRIEND】',
+    'I have come to talk with you again', '【I HAVE COME TO TALK WITH YOU AGAIN】',
+    'Because a vision softly creeping', '【BECAUSE A VISION SOFTLY CREEPING】',
+    'Left its seeds while I was sleeping', '【LEFT ITS SEEDS WHILE I WAS SLEEPING】',
+    '',
+    'And the vision that was planted', '【AND THE VISION THAT WAS PLANTED】'
+  ]);
+  assert.ok(r.verseHtml.includes('【BECAUSE A VISION SOFTLY <i>CREEPING</i>】'), 'inline markup kept inside a line');
+  // 長段落只在連續兩個 <br> 處分段，各段各自對照
+  assert.equal(r.paras.filter((l) => l.startsWith('【')).length, 2, JSON.stringify(r.paras));
+  assert.ok(r.paras[0].startsWith('First paragraph') && r.paras[1].startsWith('【FIRST PARAGRAPH'));
+  // 只有一個 <br> 的短內容不拆行，維持整段一起翻
+  assert.ok(r.single.includes('【ADDRESS LINE ONE<br>LINE TWO】'), r.single);
+  await page.evaluate(() => window.__send({ type: 'restorePage' }));
+  await wait(100);
+  assert.equal(await page.evaluate(() => document.body.innerHTML), before);
+}, lyricsFixture);
+
+await test('lyrics replaced by the page (next song) get translated again', async (page) => {
+  await inject(page, { sourceLanguages: ['en', 'ja', 'ko'] });
+  await page.evaluate(() => window.__send({ type: 'translatePage' }));
+  await wait(400);
+  await page.evaluate(() => { document.getElementById('lyrics').textContent = 'あの日の悲しみさえ\nあの日の苦しみさえ'; });
+  await wait(500);
+  assert.equal(await page.evaluate(() => document.getElementById('lyrics').textContent), '【あの日の悲しみさえ】\n【あの日の苦しみさえ】');
+}, lyricsFixture);
 
 await browser.close();
 if (failures) { console.error(`${failures} failure(s)`); process.exit(1); }

@@ -183,7 +183,11 @@
     let run = [];
     const flush = () => {
       if (run.length) {
-        if (!onlyContaining || run.includes(onlyContaining)) makeUnit(parent, run, out);
+        if (!onlyContaining || run.includes(onlyContaining)) {
+          const lines = splitLines(parent, run);
+          if (lines) for (const l of lines) makeUnit(parent, l.nodes, out, l.sep);
+          else makeUnit(parent, run, out);
+        }
         run = [];
       }
     };
@@ -200,7 +204,71 @@
     flush();
   }
 
-  function makeUnit(parent, nodes, out) {
+  // 把「一段文字、用換行或 <br> 分行」的內容（歌詞、詩、說明文字）切成一行一個單元，
+  // 這樣雙語對照可以一行原文配一行譯文，而不是整段譯文擠在最後。
+  // 回傳 [{nodes, sep}]；不需要切時回傳 null。sep：'nl'＝以換行字元分行、'br'＝以 <br> 分行。
+  function splitLines(parent, run) {
+    const el = parent.nodeType === 1 ? parent : parent.host;
+    let preWs = false;
+    try { preWs = !!el && /^(pre|break-spaces)/.test(getComputedStyle(el).whiteSpace); } catch (_) { /* ignore */ }
+    const NL = /\r?\n/;
+    const isBr = (n) => n.nodeType === 1 && n.tagName === 'BR';
+    const hasNl = preWs && run.some((n) => n.nodeType === 3 && NL.test(n.nodeValue));
+    const brCount = run.filter(isBr).length;
+    if (!hasNl && !brCount) return null;
+
+    // <br>：像歌詞／詩（4 行以上且每行不長）就逐行切；否則只在連續兩個 <br>（段落間隔）處切
+    let brMode = 'none';
+    if (brCount) {
+      const segs = [];
+      let cur = '', prevBr = false, doubleBr = false;
+      for (const n of run) {
+        if (isBr(n)) { if (prevBr) doubleBr = true; if (cur.trim()) segs.push(cur.trim()); cur = ''; prevBr = true; }
+        else { const t = n.textContent || ''; cur += t; if (/\S/.test(t)) prevBr = false; }
+      }
+      if (cur.trim()) segs.push(cur.trim());
+      const lens = segs.map((s) => s.length).sort((a, b) => a - b);
+      const median = lens.length ? lens[Math.floor(lens.length / 2)] : 0;
+      if (segs.length >= 4 && median <= 60) brMode = 'all';
+      else if (doubleBr) brMode = 'double';
+    }
+    if (!hasNl && brMode === 'none') return null;
+
+    // 把含換行的文字節點實際切開（切開後 DOM 序列化結果不變）
+    const expanded = [];
+    for (const n of run) {
+      if (hasNl && n.nodeType === 3 && NL.test(n.nodeValue)) {
+        const parts = n.nodeValue.split(/((?:\r?\n)+)/).filter((p) => p.length);
+        let cur = n;
+        for (let i = 0; i < parts.length - 1; i++) { const rest = cur.splitText(parts[i].length); expanded.push(cur); cur = rest; }
+        expanded.push(cur);
+      } else expanded.push(n);
+    }
+
+    const lines = [];
+    let cur = [], lastSep = hasNl ? 'nl' : 'br';
+    const push = (sep) => { lastSep = sep; if (cur.length) lines.push({ nodes: cur, sep }); cur = []; };
+    let buf = [], bufBr = 0;
+    const flushBuf = () => {
+      if (!buf.length) return;
+      if (bufBr >= 2) push('br'); else cur.push(...buf);
+      buf = []; bufBr = 0;
+    };
+    for (const n of expanded) {
+      if (brMode === 'double' && isBr(n)) { buf.push(n); bufBr++; continue; }
+      if (brMode === 'double' && buf.length && n.nodeType === 3 && !/\S/.test(n.nodeValue)) { buf.push(n); continue; }
+      flushBuf();
+      if (hasNl && n.nodeType === 3 && /^[\r\n]+$/.test(n.nodeValue)) { push('nl'); continue; }
+      if (brMode === 'all' && isBr(n)) { push('br'); continue; }
+      cur.push(n);
+    }
+    flushBuf();
+    push(lastSep);
+    if (lines.length < 2) return [{ nodes: expanded, sep: null }];
+    return lines;
+  }
+
+  function makeUnit(parent, nodes, out, lineSep) {
     // 去掉頭尾純空白文字節點
     const isWs = (n) => n.nodeType === 3 && !/\S/.test(n.nodeValue);
     while (nodes.length && isWs(nodes[0])) nodes.shift();
@@ -234,7 +302,8 @@
       translation: null,
       snapshot: null,
       currentNodes: null,
-      inserted: null
+      inserted: null,
+      lineSep: lineSep || null   // 逐行單元：雙語譯文要另起一行
     };
     for (const n of nodes) state.nodeToUnit.set(n, unit);
     state.units.push(unit);
@@ -430,6 +499,19 @@
   }
 
   function styleBilingual(wrap, unit) {
+    const style0 = state.settings.bilingualStyle || 'underline';
+    if (unit.lineSep) {
+      // 逐行內容：譯文放在原文下一行，用和原文相同的分行方式（換行字元或 <br>）
+      const brk = unit.lineSep === 'nl' ? document.createTextNode('\n') : document.createElement('br');
+      state.ownNodes.add(brk);
+      wrap.insertBefore(brk, wrap.firstChild);
+      let lcss = 'display:inline;';
+      if (style0 === 'underline') lcss += 'text-decoration:underline dashed rgba(120,120,120,.6);text-decoration-thickness:1px;text-underline-offset:3px;';
+      else if (style0 === 'muted') lcss += 'opacity:.82;';
+      else if (style0 === 'highlight') lcss += 'background:rgba(255,230,120,.25);border-radius:3px;';
+      wrap.style.cssText = lcss;
+      return;
+    }
     let block = false;
     try {
       const parentEl = unit.parent.nodeType === 1 ? unit.parent : null;
@@ -567,6 +649,8 @@
       if (eager || !target) { enqueue(u); continue; }
       if (!parentUnits.has(target)) parentUnits.set(target, []);
       parentUnits.get(target).push(u);
+      // 已在觀察中的元素不會再次觸發，先取消再觀察，讓已在畫面內的新內容立刻被翻譯
+      state.io.unobserve(target);
       state.io.observe(target);
     }
     state.total += units.length;
@@ -591,12 +675,21 @@
       if (r.type === 'characterData') {
         const tn = r.target;
         if (isOwn(tn)) continue;
+        if (!tn.isConnected) continue; // 已被我們換下的原文節點
         const u = state.nodeToUnit.get(tn);
+        if (u && u.state !== 'stale') {
+          // 原文其實沒變（例如我們自己把文字節點依換行切開）→ 忽略
+          const ser = unitAttached(u) ? serialize(u.nodes) : null;
+          if (ser && ser.text === u.text) continue;
+        }
         if (u && u.state === 'done' && u.snapshot && u.snapshot.textValues.has(tn)) {
           // 頁面自己改了原文字：視為新內容
           u.snapshot.textValues.set(tn, tn.nodeValue);
         }
-        if (u && (u.state === 'done' || u.state === 'error')) { u.state = 'stale'; }
+        if (u && (u.state === 'done' || u.state === 'error')) {
+          if (u.inserted) { u.inserted.remove(); u.inserted = null; } // 移除過期的雙語譯文
+          u.state = 'stale';
+        }
         if (tn.parentNode && !seen.has(tn.parentNode)) { seen.add(tn.parentNode); collectRuns(tn.parentNode, fresh); }
         continue;
       }
@@ -767,5 +860,5 @@
   else window.addEventListener('load', () => setTimeout(maybeAutoTranslate, 300), { once: true });
 
   // 測試用內部介面
-  window.__llmt = { serialize, parseTranslation, shouldTranslateText, collect, state, translatePage, restorePage };
+  window.__llmt = { serialize, parseTranslation, shouldTranslateText, collect, splitLines, state, translatePage, restorePage };
 })();

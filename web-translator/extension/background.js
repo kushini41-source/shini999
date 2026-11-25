@@ -178,7 +178,9 @@ function buildSystemPrompt(settings, context) {
     '- Keep proper nouns, brand/product names, people\'s names, code identifiers, file names, URLs, email addresses, numbers, units, hashtags and template placeholders ({name}, %s, $1) unchanged, unless a well-established Chinese name exists (e.g. 美國, 日本, 微軟, 谷歌→Google is fine to keep in English).',
     '- Use full-width Chinese punctuation (，。：；！？「」) in translated prose; keep punctuation inside code or data unchanged.',
     '- If a segment is already in Chinese, or contains nothing translatable (symbols, numbers, a lone brand name), return it unchanged.',
-    '- Never add explanations, notes, pinyin or the original text.'
+    '- Never add explanations, notes, pinyin or the original text.',
+    '- Consecutive segments are often consecutive lines of one text (song lyrics, a poem, subtitles, a list). Translate each line as its own segment and never move words between segments, but read the neighbouring lines for context so that subjects, pronouns, tense, tone and imagery stay coherent across lines.',
+    '- For song lyrics and poetry, convey the meaning and feeling in natural, literary Chinese rather than translating word-for-word; keep each line concise and do not add punctuation at line ends that the original does not have.'
   ];
   const gl = parseGlossary(settings.glossary);
   if (gl.length) {
